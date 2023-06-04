@@ -2,18 +2,17 @@ import requests
 import bs4
 import re
 from fake_headers import Headers
-from pprint import pprint
 import json
-import time
+from tqdm import tqdm
 
 headers = Headers(browser="firefox", os="win")
 
 header_data = headers.generate()
 vacancys = []
 count = 0
-start_time = time.time()
+count_false = 0
 
-for page in range(0, 401): # Это количество циклов удовлетворяет условию забрать все вакансии
+for page in tqdm(range(0, 401), desc='Поиск по страницам ...'):
     response = requests.get(
         f'https://spb.hh.ru/search/vacancy?text=python&area=1&area=2&page={page}', headers=header_data)
     html_data = response.text
@@ -61,15 +60,20 @@ for page in range(0, 401): # Это количество циклов удовл
         html_data1 = response1.text
         soup1 = bs4.BeautifulSoup(html_data1, 'lxml')
         tag1 = soup1.find('div', class_='g-user-content')
-        if tag:
-            text = tag1.text
-            match = re.search(r'\b(Django|Flask)\b', text)
-            if match:
-                match_word = match.group(0)
-                vacancys.append(vacancy)
-                count += 1
-            else:
-                continue
+
+        if tag1 is not None:
+            if tag:
+                text = tag1.text
+                match = re.search(r'\b(Django|Flask)\b', text)
+                if match:
+                    match_word = match.group(0)
+                    vacancys.append(vacancy)
+                    count += 1
+                else:
+                    count_false += 1
+                    continue
+        else:
+            continue
 
         # Записываем в файл результат парсинга с сохранением кодировки UTF-8
         filename = 'data.json'
@@ -77,9 +81,5 @@ for page in range(0, 401): # Это количество циклов удовл
         with open(filename, 'w', encoding='utf-8') as file:
             json.dump(vacancys, file, indent=4, ensure_ascii=False)
 
-end_time = time.time()
-execution_time = end_time - start_time
-
-pprint(vacancys)
-print(count)
-print(execution_time)
+print(f'Количество записанных вакансий вакансий - {count}')
+print(f'Количество не  подходящих вакансий {count_false}')
